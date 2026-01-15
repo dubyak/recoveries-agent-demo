@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Clock, DollarSign, Wifi, Battery, Signal } from 'lucide-react';
+
+// Tala brand color
+const TALA_COLOR = '#00c39b';
+const TALA_LIGHT = '#e6f9f5';
+const TALA_DARK = '#00a784';
 
 interface Message {
   id: string;
@@ -18,7 +22,6 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Demo loan data
   const loanData = {
     totalOwed: 562.50,
     daysOverdue: 45,
@@ -65,9 +68,7 @@ export default function Home() {
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage,
           sessionId,
@@ -89,70 +90,139 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center p-4">
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px',
+      fontFamily: 'Inter, system-ui, sans-serif'
+    }}>
       {/* Android Phone Frame */}
-      <div className="relative w-full max-w-[375px] h-[812px] bg-gray-900 rounded-[3rem] p-3 shadow-2xl">
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        maxWidth: '375px',
+        height: '812px',
+        backgroundColor: '#1f2937',
+        borderRadius: '48px',
+        padding: '12px',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+      }}>
         {/* Phone Screen */}
-        <div className="relative w-full h-full bg-gray-50 rounded-[2.5rem] overflow-hidden flex flex-col">
+        <div style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#f9fafb',
+          borderRadius: '40px',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
 
-          {/* Android Status Bar */}
-          <div className="bg-tala-500 px-6 py-2 flex items-center justify-between text-white text-xs">
-            <span className="font-medium">9:41</span>
-            <div className="flex items-center gap-2">
-              <Signal className="w-4 h-4" />
-              <Wifi className="w-4 h-4" />
-              <Battery className="w-5 h-4" />
+          {/* Status Bar */}
+          <div style={{
+            backgroundColor: TALA_COLOR,
+            padding: '8px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            color: 'white',
+            fontSize: '12px'
+          }}>
+            <span style={{ fontWeight: 500 }}>9:41</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16" />
+              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01" />
+              </svg>
+              <svg width="20" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="1" y="6" width="18" height="12" rx="2" />
+                <line x1="23" y1="10" x2="23" y2="14" />
+              </svg>
             </div>
           </div>
 
           {/* App Header */}
-          <header className="bg-tala-500 text-white px-4 py-3 flex items-center gap-3 shadow-md">
-            <div className="relative">
+          <header style={{
+            backgroundColor: TALA_COLOR,
+            color: 'white',
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{ position: 'relative' }}>
               <Image
                 src="/andrea.png"
                 alt="Andrea"
                 width={44}
                 height={44}
-                className="rounded-full border-2 border-white/30"
+                style={{ borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)' }}
               />
-              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-tala-500"></div>
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                width: '12px',
+                height: '12px',
+                backgroundColor: '#4ade80',
+                borderRadius: '50%',
+                border: `2px solid ${TALA_COLOR}`
+              }} />
             </div>
-            <div className="flex-1">
-              <h2 className="font-bold text-lg">Andrea</h2>
-              <p className="text-xs text-tala-100">Tala Recovery Specialist</p>
+            <div style={{ flex: 1 }}>
+              <h2 style={{ fontWeight: 700, fontSize: '18px', margin: 0 }}>Andrea</h2>
+              <p style={{ fontSize: '12px', margin: 0, opacity: 0.8 }}>Tala Recovery Specialist</p>
             </div>
           </header>
 
           {/* Loan Summary Card */}
-          <div className="px-4 py-3 bg-white border-b border-gray-100">
-            <div className="bg-gradient-to-br from-tala-50 to-white rounded-xl p-4 border border-tala-100">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-tala-600" />
-                  <span className="font-semibold text-gray-700 text-sm">Outstanding Balance</span>
+          <div style={{ padding: '12px 16px', backgroundColor: 'white', borderBottom: '1px solid #f3f4f6' }}>
+            <div style={{
+              background: `linear-gradient(135deg, ${TALA_LIGHT} 0%, white 100%)`,
+              borderRadius: '12px',
+              padding: '16px',
+              border: `1px solid ${TALA_LIGHT}`
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={TALA_DARK} strokeWidth="2">
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                  <span style={{ fontWeight: 600, color: '#374151', fontSize: '14px' }}>Outstanding Balance</span>
                 </div>
-                <div className="flex items-center gap-1 text-orange-500 text-xs">
-                  <Clock className="w-3 h-3" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f97316', fontSize: '12px' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
                   <span>{loanData.daysOverdue} days overdue</span>
                 </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900">
+              <div style={{ fontSize: '24px', fontWeight: 700, color: '#111827' }}>
                 ${loanData.totalOwed.toFixed(2)}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
                 Original: ${loanData.originalAmount.toFixed(2)} + Fees: ${loanData.fees.toFixed(2)}
               </div>
             </div>
           </div>
 
-          {/* Chat Messages - Scrollable */}
-          <div className="flex-1 overflow-y-auto px-4 py-4">
-            <div className="space-y-4">
+          {/* Chat Messages */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {messages.length === 0 && (
-                <div className="text-center py-6">
-                  <div className="text-5xl mb-3">💬</div>
-                  <h3 className="font-bold text-base mb-1">Hi! I'm Andrea</h3>
-                  <p className="text-xs text-gray-600">
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '12px' }}>💬</div>
+                  <h3 style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px' }}>Hi! I'm Andrea</h3>
+                  <p style={{ fontSize: '12px', color: '#6b7280' }}>
                     I'm here to help you get back on track with your loan.
                   </p>
                 </div>
@@ -161,9 +231,10 @@ export default function Home() {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
+                  style={{
+                    display: 'flex',
+                    justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start'
+                  }}
                 >
                   {message.role === 'assistant' && (
                     <Image
@@ -171,35 +242,56 @@ export default function Home() {
                       alt="Andrea"
                       width={28}
                       height={28}
-                      className="rounded-full mr-2 mt-1 flex-shrink-0"
+                      style={{ borderRadius: '50%', marginRight: '8px', marginTop: '4px', flexShrink: 0 }}
                     />
                   )}
-                  <div
-                    className={`max-w-[75%] rounded-2xl px-3 py-2 ${
-                      message.role === 'user'
-                        ? 'bg-tala-500 text-white rounded-br-md'
-                        : 'bg-white border border-gray-200 rounded-bl-md shadow-sm'
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <div style={{
+                    maxWidth: '75%',
+                    borderRadius: '16px',
+                    padding: '8px 12px',
+                    backgroundColor: message.role === 'user' ? TALA_COLOR : 'white',
+                    color: message.role === 'user' ? 'white' : '#111827',
+                    border: message.role === 'user' ? 'none' : '1px solid #e5e7eb',
+                    borderBottomRightRadius: message.role === 'user' ? '4px' : '16px',
+                    borderBottomLeftRadius: message.role === 'user' ? '16px' : '4px',
+                    boxShadow: message.role === 'assistant' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+                  }}>
+                    <p style={{ fontSize: '14px', margin: 0, whiteSpace: 'pre-wrap' }}>{message.content}</p>
                   </div>
                 </div>
               ))}
 
               {isLoading && (
-                <div className="flex justify-start">
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                   <Image
                     src="/andrea.png"
                     alt="Andrea"
                     width={28}
                     height={28}
-                    className="rounded-full mr-2 mt-1 flex-shrink-0"
+                    style={{ borderRadius: '50%', marginRight: '8px', marginTop: '4px', flexShrink: 0 }}
                   />
-                  <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-tala-400 rounded-full animate-bounce" />
-                      <div className="w-2 h-2 bg-tala-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                      <div className="w-2 h-2 bg-tala-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  <div style={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '16px',
+                    borderBottomLeftRadius: '4px',
+                    padding: '12px 16px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                  }}>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {[0, 1, 2].map((i) => (
+                        <div
+                          key={i}
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            backgroundColor: TALA_COLOR,
+                            borderRadius: '50%',
+                            animation: 'bounce 1s infinite',
+                            animationDelay: `${i * 0.1}s`
+                          }}
+                        />
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -210,20 +302,40 @@ export default function Home() {
           </div>
 
           {/* Input Area */}
-          <div className="bg-white border-t border-gray-200 p-3">
-            <form onSubmit={handleSend} className="flex gap-2">
+          <div style={{ backgroundColor: 'white', borderTop: '1px solid #e5e7eb', padding: '12px' }}>
+            <form onSubmit={handleSend} style={{ display: 'flex', gap: '8px' }}>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Type your message..."
-                className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-full text-sm focus:ring-2 focus:ring-tala-500 focus:border-tala-500 outline-none transition-all"
                 disabled={isLoading}
+                style={{
+                  flex: 1,
+                  padding: '8px 16px',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '24px',
+                  fontSize: '14px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={(e) => e.target.style.borderColor = TALA_COLOR}
+                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="bg-tala-500 text-white px-5 py-2 rounded-full font-semibold text-sm hover:bg-tala-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: isLoading || !input.trim() ? '#9ca3af' : TALA_COLOR,
+                  color: 'white',
+                  padding: '8px 20px',
+                  borderRadius: '24px',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  border: 'none',
+                  cursor: isLoading || !input.trim() ? 'not-allowed' : 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
               >
                 Send
               </button>
@@ -231,18 +343,52 @@ export default function Home() {
           </div>
 
           {/* Android Navigation Bar */}
-          <div className="bg-gray-100 h-8 flex items-center justify-center gap-16 px-8">
-            <div className="w-5 h-5 border-2 border-gray-400 rounded-sm"></div>
-            <div className="w-5 h-5 border-2 border-gray-400 rounded-full"></div>
-            <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[14px] border-b-gray-400"></div>
+          <div style={{
+            backgroundColor: '#f3f4f6',
+            height: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '64px',
+            padding: '0 32px'
+          }}>
+            <div style={{ width: '20px', height: '20px', border: '2px solid #9ca3af', borderRadius: '4px' }} />
+            <div style={{ width: '20px', height: '20px', border: '2px solid #9ca3af', borderRadius: '50%' }} />
+            <div style={{
+              width: 0,
+              height: 0,
+              borderLeft: '10px solid transparent',
+              borderRight: '10px solid transparent',
+              borderBottom: '14px solid #9ca3af'
+            }} />
           </div>
         </div>
 
-        {/* Phone Notch/Camera */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 w-24 h-6 bg-gray-900 rounded-b-2xl flex items-center justify-center">
-          <div className="w-3 h-3 bg-gray-700 rounded-full"></div>
+        {/* Phone Notch */}
+        <div style={{
+          position: 'absolute',
+          top: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '96px',
+          height: '24px',
+          backgroundColor: '#1f2937',
+          borderBottomLeftRadius: '16px',
+          borderBottomRightRadius: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ width: '12px', height: '12px', backgroundColor: '#374151', borderRadius: '50%' }} />
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes bounce {
+          0%, 60%, 100% { transform: translateY(0); }
+          30% { transform: translateY(-4px); }
+        }
+      `}</style>
     </div>
   );
 }
