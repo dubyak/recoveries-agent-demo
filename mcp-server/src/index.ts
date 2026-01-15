@@ -1,15 +1,6 @@
-#!/usr/bin/env node
-
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  Tool,
-} from "@modelcontextprotocol/sdk/types.js";
+import { createServer } from "http";
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
-import { z } from "zod";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -24,107 +15,6 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
 });
 
-// Tool schemas
-const GetCustomerInfoSchema = z.object({
-  customer_id: z.string().describe("The customer ID to look up"),
-});
-
-const RecordPTPSchema = z.object({
-  customer_id: z.string().describe("Customer ID"),
-  session_id: z.string().describe("Conversation session ID"),
-  amount: z.number().describe("Promised payment amount in USD"),
-  payment_date: z.string().describe("Promised payment date (YYYY-MM-DD)"),
-  notes: z.string().optional().describe("Additional notes about the agreement"),
-});
-
-const GetLoanDetailsSchema = z.object({
-  loan_id: z.string().describe("The loan ID to look up"),
-});
-
-// Define tools
-const tools: Tool[] = [
-  {
-    name: "get_customer_info",
-    description: "Retrieve customer information including name, contact details, and loan history",
-    inputSchema: {
-      type: "object",
-      properties: {
-        customer_id: {
-          type: "string",
-          description: "The customer ID to look up",
-        },
-      },
-      required: ["customer_id"],
-    },
-  },
-  {
-    name: "get_loan_details",
-    description: "Get detailed information about a specific loan including balance, fees, and payment history",
-    inputSchema: {
-      type: "object",
-      properties: {
-        loan_id: {
-          type: "string",
-          description: "The loan ID to look up",
-        },
-      },
-      required: ["loan_id"],
-    },
-  },
-  {
-    name: "record_ptp",
-    description: "Record a Promise to Pay (PTP) agreement with the customer",
-    inputSchema: {
-      type: "object",
-      properties: {
-        customer_id: {
-          type: "string",
-          description: "Customer ID",
-        },
-        session_id: {
-          type: "string",
-          description: "Conversation session ID",
-        },
-        amount: {
-          type: "number",
-          description: "Promised payment amount in USD",
-        },
-        payment_date: {
-          type: "string",
-          description: "Promised payment date (YYYY-MM-DD format)",
-        },
-        notes: {
-          type: "string",
-          description: "Additional notes about the agreement",
-        },
-      },
-      required: ["customer_id", "session_id", "amount", "payment_date"],
-    },
-  },
-  {
-    name: "call_claude",
-    description: "Make a call to Claude API for text generation",
-    inputSchema: {
-      type: "object",
-      properties: {
-        messages: {
-          type: "array",
-          description: "Array of message objects with role and content",
-        },
-        system: {
-          type: "string",
-          description: "System prompt",
-        },
-        model: {
-          type: "string",
-          description: "Model to use (default: claude-3-5-sonnet-20241022)",
-        },
-      },
-      required: ["messages"],
-    },
-  },
-];
-
 // Tool handlers
 async function getCustomerInfo(customer_id: string) {
   const { data, error } = await supabase
@@ -134,7 +24,7 @@ async function getCustomerInfo(customer_id: string) {
     .single();
 
   if (error) {
-    // Return demo data for now if no DB connection
+    // Return demo data if no DB connection
     return {
       customer_id,
       name: "Sarah Omondi",
@@ -156,7 +46,7 @@ async function getLoanDetails(loan_id: string) {
     .single();
 
   if (error) {
-    // Return demo data for now if no DB connection
+    // Return demo data if no DB connection
     return {
       loan_id,
       customer_id: "CUST001",
@@ -174,7 +64,13 @@ async function getLoanDetails(loan_id: string) {
   return data;
 }
 
-async function recordPTP(params: z.infer<typeof RecordPTPSchema>) {
+async function recordPTP(params: {
+  customer_id: string;
+  session_id: string;
+  amount: number;
+  payment_date: string;
+  notes?: string;
+}) {
   const { customer_id, session_id, amount, payment_date, notes } = params;
 
   const ptpRecord = {
@@ -190,7 +86,6 @@ async function recordPTP(params: z.infer<typeof RecordPTPSchema>) {
   const { data, error } = await supabase.from("ptps").insert([ptpRecord]).select();
 
   if (error) {
-    // Mock success for demo
     console.log("Would record PTP:", ptpRecord);
     return {
       success: true,
@@ -205,14 +100,18 @@ async function recordPTP(params: z.infer<typeof RecordPTPSchema>) {
   };
 }
 
-async function callClaude(params: any) {
-  const { messages, system, model = "claude-3-5-sonnet-20241022" } = params;
+async function callClaude(params: {
+  messages: Array<{ role: string; content: string }>;
+  system?: string;
+  model?: string;
+}) {
+  const { messages, system, model = "claude-sonnet-4-20250514" } = params;
 
   const response = await anthropic.messages.create({
     model,
     max_tokens: 1024,
     system: system || undefined,
-    messages,
+    messages: messages as Anthropic.MessageParam[],
   });
 
   return {
@@ -222,80 +121,88 @@ async function callClaude(params: any) {
   };
 }
 
-// Create server
-const server = new Server(
-  {
-    name: "tala-recoveries-mcp-server",
-    version: "1.0.0",
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
-);
-
-// Set up handlers
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return { tools };
-});
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  try {
-    switch (name) {
-      case "get_customer_info": {
-        const params = GetCustomerInfoSchema.parse(args);
-        const result = await getCustomerInfo(params.customer_id);
-        return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
+// Parse JSON body from request
+async function parseBody(req: any): Promise<any> {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk: string) => (body += chunk));
+    req.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        resolve({});
       }
-
-      case "get_loan_details": {
-        const params = GetLoanDetailsSchema.parse(args);
-        const result = await getLoanDetails(params.loan_id);
-        return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
-      }
-
-      case "record_ptp": {
-        const params = RecordPTPSchema.parse(args);
-        const result = await recordPTP(params);
-        return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
-      }
-
-      case "call_claude": {
-        const result = await callClaude(args);
-        return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
-      }
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return {
-      content: [{ type: "text", text: `Error: ${errorMessage}` }],
-      isError: true,
-    };
-  }
-});
-
-// Start server
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Tala Recoveries MCP server running on stdio");
+    });
+    req.on("error", reject);
+  });
 }
 
-main().catch((error) => {
-  console.error("Server error:", error);
-  process.exit(1);
+// Create HTTP server
+const server = createServer(async (req, res) => {
+  // CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  const url = new URL(req.url || "/", `http://${req.headers.host}`);
+  const path = url.pathname;
+
+  // Health check
+  if (path === "/health" && req.method === "GET") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "healthy" }));
+    return;
+  }
+
+  // Tool endpoints
+  if (path.startsWith("/tools/") && req.method === "POST") {
+    const toolName = path.replace("/tools/", "");
+    const body = await parseBody(req);
+
+    try {
+      let result: any;
+
+      switch (toolName) {
+        case "get_customer_info":
+          result = await getCustomerInfo(body.customer_id);
+          break;
+        case "get_loan_details":
+          result = await getLoanDetails(body.loan_id);
+          break;
+        case "record_ptp":
+          result = await recordPTP(body);
+          break;
+        case "call_claude":
+          result = await callClaude(body);
+          break;
+        default:
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: `Unknown tool: ${toolName}` }));
+          return;
+      }
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(result));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: message }));
+    }
+    return;
+  }
+
+  // 404 for other routes
+  res.writeHead(404, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ error: "Not found" }));
+});
+
+const PORT = parseInt(process.env.PORT || "3000", 10);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`MCP HTTP server running on port ${PORT}`);
 });
