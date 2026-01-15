@@ -1,61 +1,18 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@theme {
+  --color-tala-50: #e6f9f5;
+  --color-tala-100: #ccf3eb;
+  --color-tala-200: #99e7d7;
+  --color-tala-300: #66dbc3;
+  --color-tala-400: #33cfaf;
+  --color-tala-500: #00c39b;
+  --color-tala-600: #00a784;
+  --color-tala-700: #008b6d;
+  --color-tala-800: #006f56;
+  --color-tala-900: #00533f;
+}
 
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: #F7FAFC;
-}
-
-.android-frame {
-  max-width: 375px;
-  margin: 0 auto;
-  background: white;
-  min-height: 100vh;
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
-}
-
-.chat-container {
-  height: calc(100vh - 140px);
-  overflow-y: auto;
-}
-
-.message-bubble {
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.typing-indicator span {
-  animation: typing 1.4s infinite;
-}
-
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing {
-  0%, 60%, 100% {
-    transform: translateY(0);
-    opacity: 0.7;
-  }
-  30% {
-    transform: translateY(-10px);
-    opacity: 1;
-  }
+  font-family: 'Inter', system-ui, sans-serif;
 }
