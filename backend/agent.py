@@ -2,8 +2,7 @@ import os
 from typing import List, Dict, Any
 from langchain_anthropic import ChatAnthropic
 from langchain.schema import HumanMessage, AIMessage, SystemMessage
-from langfuse import Langfuse
-from langfuse.callback import CallbackHandler
+import braintrust
 import httpx
 
 
@@ -11,12 +10,8 @@ class RecoveriesAgent:
     def __init__(self):
         self.mcp_url = os.getenv("MCP_SERVER_URL", "http://localhost:3000")
 
-        # Initialize Langfuse for prompt management
-        self.langfuse = Langfuse(
-            public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-            secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-            host=os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
-        )
+        # Initialize Braintrust for logging and prompt management
+        self.logger = braintrust.init_logger(project="recoveries-agent")
 
         # Initialize Claude via MCP (will use MCP server for model access)
         self.use_mcp = os.getenv("USE_MCP_SERVER", "false").lower() == "true"
@@ -34,15 +29,15 @@ class RecoveriesAgent:
 
     def get_system_prompt(self) -> str:
         """
-        Get system prompt from Langfuse.
-        Falls back to default if Langfuse is not configured.
+        Get system prompt from Braintrust.
+        Falls back to default if Braintrust is not configured.
         """
         try:
-            # Attempt to get prompt from Langfuse
-            prompt = self.langfuse.get_prompt("andrea-recoveries-agent")
-            return prompt.prompt
+            # Attempt to get prompt from Braintrust
+            prompt = braintrust.load_prompt(project="recoveries-agent", slug="andrea-recoveries-agent")
+            return prompt.build()["prompt"]
         except Exception as e:
-            print(f"Could not fetch prompt from Langfuse: {e}")
+            print(f"Could not fetch prompt from Braintrust: {e}")
             # Default system prompt
             return """You are Andrea, a compassionate and professional loan recovery specialist at Tala, a mobile lending company serving customers in emerging markets.
 
@@ -141,14 +136,10 @@ Previous Loan History: {customer_info['previous_loans']} loans, {customer_info['
         # Add current message
         messages.append(HumanMessage(content=message))
 
-        # Get response from LLM
-        langfuse_handler = CallbackHandler(
-            public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-            secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-            session_id=session_id
-        )
-
-        response = self.llm.invoke(messages, config={"callbacks": [langfuse_handler]})
+        # Get response from LLM with Braintrust logging
+        with self.logger.start_span(name="llm_invoke", input={"message": message, "session_id": session_id}) as span:
+            response = self.llm.invoke(messages)
+            span.log(output={"response": response.content})
 
         # Check if we need to call any tools (simplified - in production use LangChain tool calling)
         # For now, we'll detect PTP intent in the response
