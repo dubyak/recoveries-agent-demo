@@ -10,8 +10,12 @@ class RecoveriesAgent:
     def __init__(self):
         self.mcp_url = os.getenv("MCP_SERVER_URL", "http://localhost:3000")
 
-        # Initialize Braintrust for logging and prompt management
-        self.logger = braintrust.init_logger(project="recoveries-agent")
+        # Initialize Braintrust for logging and prompt management (optional)
+        try:
+            self.logger = braintrust.init_logger(project="recoveries-agent")
+        except Exception as e:
+            print(f"Braintrust not configured, logging disabled: {e}")
+            self.logger = None
 
         # Initialize Claude via MCP (will use MCP server for model access)
         self.use_mcp = os.getenv("USE_MCP_SERVER", "false").lower() == "true"
@@ -136,10 +140,13 @@ Previous Loan History: {customer_info['previous_loans']} loans, {customer_info['
         # Add current message
         messages.append(HumanMessage(content=message))
 
-        # Get response from LLM with Braintrust logging
-        with self.logger.start_span(name="llm_invoke", input={"message": message, "session_id": session_id}) as span:
+        # Get response from LLM with optional Braintrust logging
+        if self.logger:
+            with self.logger.start_span(name="llm_invoke", input={"message": message, "session_id": session_id}) as span:
+                response = self.llm.invoke(messages)
+                span.log(output={"response": response.content})
+        else:
             response = self.llm.invoke(messages)
-            span.log(output={"response": response.content})
 
         # Check if we need to call any tools (simplified - in production use LangChain tool calling)
         # For now, we'll detect PTP intent in the response
