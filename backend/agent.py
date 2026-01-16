@@ -20,13 +20,12 @@ class RecoveriesAgent:
         # Initialize Claude via MCP (will use MCP server for model access)
         self.use_mcp = os.getenv("USE_MCP_SERVER", "false").lower() == "true"
 
-        if not self.use_mcp:
-            # Direct Anthropic access for now
-            self.llm = ChatAnthropic(
-                model="claude-sonnet-4-20250514",
-                temperature=0.7,
-                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY")
-            )
+        # Always initialize LLM for now (MCP integration can be added later)
+        self.llm = ChatAnthropic(
+            model="claude-sonnet-4-20250514",
+            temperature=0.7,
+            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY")
+        )
 
         # Session storage (in production, use Redis or similar)
         self.sessions: Dict[str, Dict[str, Any]] = {}
@@ -167,18 +166,34 @@ Previous Loan History: {customer_info['previous_loans']} loans, {customer_info['
         }
 
     async def get_customer_info(self, session_id: str) -> dict:
-        """Get customer information (mock data for demo)"""
-        # In production, this would call the MCP server to get real data from Supabase
-        return {
-            "customer_id": "CUST001",
-            "name": "Sarah Omondi",
-            "loan_id": "LOAN12345",
-            "original_amount": 500.00,
-            "total_owed": 562.50,
-            "days_overdue": 45,
-            "previous_loans": 3,
-            "payment_history": "2 on-time, 1 late"
-        }
+        """Get customer information from MCP server or use mock data"""
+        if self.use_mcp:
+            # Get real customer data via MCP server
+            customer_data = await self.call_mcp_tool("get_customer_info", {"customer_id": "CUST001"})
+            loan_data = await self.call_mcp_tool("get_loan_details", {"loan_id": "LOAN12345"})
+
+            return {
+                "customer_id": customer_data.get("customer_id", "CUST001"),
+                "name": customer_data.get("name", "Sarah Omondi"),
+                "loan_id": loan_data.get("loan_id", "LOAN12345"),
+                "original_amount": loan_data.get("original_amount", 500.00),
+                "total_owed": loan_data.get("current_balance", 562.50),
+                "days_overdue": loan_data.get("days_overdue", 45),
+                "previous_loans": customer_data.get("previous_loans", 3),
+                "payment_history": customer_data.get("payment_history", "2 on-time, 1 late")
+            }
+        else:
+            # Return mock data for demo
+            return {
+                "customer_id": "CUST001",
+                "name": "Sarah Omondi",
+                "loan_id": "LOAN12345",
+                "original_amount": 500.00,
+                "total_owed": 562.50,
+                "days_overdue": 45,
+                "previous_loans": 3,
+                "payment_history": "2 on-time, 1 late"
+            }
 
     async def try_record_ptp(self, session_id: str, conversation: List[dict]) -> None:
         """Attempt to extract and record PTP from conversation"""
