@@ -7,6 +7,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { message, sessionId, history } = body;
 
+    console.log('BACKEND_URL:', BACKEND_URL);
+
     // Forward request to Python backend
     const response = await fetch(`${BACKEND_URL}/api/chat`, {
       method: 'POST',
