@@ -168,7 +168,7 @@ export default function Home() {
                 alt="Andrea"
                 width={44}
                 height={44}
-                style={{ borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)' }}
+                style={{ borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', objectFit: 'cover' }}
               />
               <div style={{
                 position: 'absolute',
