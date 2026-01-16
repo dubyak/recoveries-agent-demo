@@ -23,7 +23,7 @@ class RecoveriesAgent:
         if not self.use_mcp:
             # Direct Anthropic access for now
             self.llm = ChatAnthropic(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-3-5-sonnet-20240620",
                 temperature=0.7,
                 anthropic_api_key=os.getenv("ANTHROPIC_API_KEY")
             )
