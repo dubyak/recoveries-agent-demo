@@ -162,14 +162,16 @@ export default function Home() {
             gap: '12px',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
           }}>
-            <div style={{ position: 'relative' }}>
-              <Image
-                src="/andrea.png"
-                alt="Andrea"
-                width={44}
-                height={44}
-                style={{ borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', objectFit: 'cover' }}
-              />
+            <div style={{ position: 'relative', width: '44px', height: '44px' }}>
+              <div style={{ width: '100%', height: '100%', overflow: 'hidden', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)' }}>
+                <Image
+                  src="/andrea.png"
+                  alt="Andrea"
+                  width={44}
+                  height={44}
+                  style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                />
+              </div>
               <div style={{
                 position: 'absolute',
                 bottom: 0,
@@ -242,13 +244,15 @@ export default function Home() {
                   }}
                 >
                   {message.role === 'assistant' && (
-                    <Image
-                      src="/andrea.png"
-                      alt="Andrea"
-                      width={28}
-                      height={28}
-                      style={{ borderRadius: '50%', marginRight: '8px', marginTop: '4px', flexShrink: 0, objectFit: 'cover' }}
-                    />
+                    <div style={{ width: '28px', height: '28px', marginRight: '8px', marginTop: '4px', flexShrink: 0, overflow: 'hidden', borderRadius: '50%' }}>
+                      <Image
+                        src="/andrea.png"
+                        alt="Andrea"
+                        width={28}
+                        height={28}
+                        style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                      />
+                    </div>
                   )}
                   <div style={{
                     maxWidth: '75%',
@@ -268,13 +272,15 @@ export default function Home() {
 
               {isLoading && (
                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                  <Image
-                    src="/andrea.png"
-                    alt="Andrea"
-                    width={28}
-                    height={28}
-                    style={{ borderRadius: '50%', marginRight: '8px', marginTop: '4px', flexShrink: 0, objectFit: 'cover' }}
-                  />
+                  <div style={{ width: '28px', height: '28px', marginRight: '8px', marginTop: '4px', flexShrink: 0, overflow: 'hidden', borderRadius: '50%' }}>
+                    <Image
+                      src="/andrea.png"
+                      alt="Andrea"
+                      width={28}
+                      height={28}
+                      style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                    />
+                  </div>
                   <div style={{
                     backgroundColor: 'white',
                     border: '1px solid #e5e7eb',
