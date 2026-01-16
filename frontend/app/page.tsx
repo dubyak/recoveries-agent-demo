@@ -247,7 +247,7 @@ export default function Home() {
                       alt="Andrea"
                       width={28}
                       height={28}
-                      style={{ borderRadius: '50%', marginRight: '8px', marginTop: '4px', flexShrink: 0 }}
+                      style={{ borderRadius: '50%', marginRight: '8px', marginTop: '4px', flexShrink: 0, objectFit: 'cover' }}
                     />
                   )}
                   <div style={{
@@ -273,7 +273,7 @@ export default function Home() {
                     alt="Andrea"
                     width={28}
                     height={28}
-                    style={{ borderRadius: '50%', marginRight: '8px', marginTop: '4px', flexShrink: 0 }}
+                    style={{ borderRadius: '50%', marginRight: '8px', marginTop: '4px', flexShrink: 0, objectFit: 'cover' }}
                   />
                   <div style={{
                     backgroundColor: 'white',
