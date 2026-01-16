@@ -72,7 +72,12 @@ export default function Home() {
         body: JSON.stringify({
           message: userMessage,
           sessionId,
-          history: messages.map(m => ({ role: m.role, content: m.content })),
+          history: messages.map(m => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp.toISOString()
+          })),
         }),
       });
 
