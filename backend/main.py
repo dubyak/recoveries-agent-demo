@@ -5,7 +5,7 @@ from typing import List, Optional
 import os
 import time
 from dotenv import load_dotenv
-from agent_optimized import RecoveriesAgent
+from agent import RecoveriesAgent
 import uvicorn
 import braintrust
 
@@ -159,4 +159,4 @@ async def chat(request: ChatRequest, req: Request):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main_optimized:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
