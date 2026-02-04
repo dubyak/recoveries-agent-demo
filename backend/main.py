@@ -1,11 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import os
+import time
 from dotenv import load_dotenv
-from agent import RecoveriesAgent
+from agent_optimized import RecoveriesAgent
 import uvicorn
+import braintrust
 
 load_dotenv()
 
@@ -22,6 +24,17 @@ app.add_middleware(
 
 # Initialize agent
 agent = RecoveriesAgent()
+
+# Initialize Braintrust logger for API-level tracing
+try:
+    api_logger = braintrust.init_logger(
+        project="recoveries-agent",
+        api_key=os.getenv("BRAINTRUST_API_KEY"),
+    )
+    print("✓ API-level Braintrust logger initialized")
+except Exception as e:
+    print(f"⚠ API logger not configured: {e}")
+    api_logger = None
 
 
 class Message(BaseModel):
@@ -54,7 +67,26 @@ async def health():
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, req: Request):
+    """
+    Process chat message with full e2e tracing in Braintrust
+    """
+    start_time = time.time()
+    trace_id = None
+    top_span = None
+
+    # Start a top-level trace for this API call
+    if api_logger:
+        top_span = api_logger.start_span(
+            name="api_chat",
+            span_attributes={
+                "session_id": request.session_id,
+                "api_endpoint": "/api/chat",
+                "user_agent": req.headers.get("user-agent", "unknown"),
+            }
+        )
+        trace_id = top_span.id if hasattr(top_span, 'id') else None
+
     try:
         # Convert history to format expected by agent
         history = [
@@ -62,23 +94,69 @@ async def chat(request: ChatRequest):
             for msg in request.history
         ]
 
-        # Get response from agent
+        # Get response from agent (passing parent span for nested logging)
         response = await agent.process_message(
             message=request.message,
             session_id=request.session_id,
-            history=history
+            history=history,
+            parent_span=top_span
         )
 
-        return ChatResponse(
+        result = ChatResponse(
             response=response["content"],
             session_id=request.session_id,
             metadata=response.get("metadata", {})
         )
+
+        # Log successful completion
+        if top_span:
+            elapsed = time.time() - start_time
+            top_span.log(
+                input={
+                    "message": request.message,
+                    "session_id": request.session_id,
+                    "history_length": len(history)
+                },
+                output={
+                    "response": response["content"],
+                    "metadata": response.get("metadata", {})
+                },
+                metadata={
+                    "elapsed_seconds": round(elapsed, 3),
+                    "trace_id": trace_id,
+                },
+                scores={
+                    "response_time_seconds": elapsed
+                }
+            )
+            top_span.end()
+
+        return result
+
     except Exception as e:
-        print(f"Error processing chat: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        print(f"❌ Error processing chat: {error_msg}")
+
+        # Log error to Braintrust
+        if top_span:
+            elapsed = time.time() - start_time
+            top_span.log(
+                input={
+                    "message": request.message,
+                    "session_id": request.session_id,
+                    "history_length": len(request.history)
+                },
+                error=error_msg,
+                metadata={
+                    "elapsed_seconds": round(elapsed, 3),
+                    "trace_id": trace_id,
+                }
+            )
+            top_span.end()
+
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("main_optimized:app", host="0.0.0.0", port=port, reload=True)

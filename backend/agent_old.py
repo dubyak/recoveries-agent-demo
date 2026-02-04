@@ -18,21 +18,17 @@ class RecoveriesAgent:
             cache_ttl_seconds=int(os.getenv("PROMPT_CACHE_TTL_SECONDS", "60"))
         )
 
-        # Initialize Braintrust for logging and prompt management
+        # Initialize Braintrust for logging and prompt management (optional)
         try:
-            self.logger = braintrust.init_logger(
-                project="recoveries-agent",
-                api_key=os.getenv("BRAINTRUST_API_KEY"),
-            )
-            print("✓ Braintrust logger initialized")
+            self.logger = braintrust.init_logger(project="recoveries-agent")
         except Exception as e:
-            print(f"⚠ Braintrust not configured, logging disabled: {e}")
+            print(f"Braintrust not configured, logging disabled: {e}")
             self.logger = None
 
         # Use MCP server for model access
         self.use_mcp = os.getenv("USE_MCP_SERVER", "false").lower() == "true"
         if not self.use_mcp:
-            print("⚠ USE_MCP_SERVER is false. Model calls will fail unless MCP is enabled.")
+            print("USE_MCP_SERVER is false. Model calls will fail unless MCP is enabled.")
 
         # Session storage (in production, use Redis or similar)
         self.sessions: Dict[str, Dict[str, Any]] = {}
@@ -58,14 +54,11 @@ class RecoveriesAgent:
         file_prompt = self._read_prompt_file("andrea_system_prompt.txt")
         try:
             ref = prompt_ref_from_env("SYSTEM_PROMPT", default_project="recoveries-agent")
-            prompt_text = self.prompt_loader.load_text(ref, fallback_text=file_prompt)
-            print(f"✓ Loaded prompt from Braintrust: {ref}")
-            return prompt_text
+            return self.prompt_loader.load_text(ref, fallback_text=file_prompt)
         except Exception as e:
             if file_prompt:
-                print(f"⚠ Using file prompt (Braintrust unavailable): {e}")
                 return file_prompt
-            print(f"❌ Could not fetch system prompt: {e}")
+            print(f"Could not fetch system prompt: {e}")
             return (
                 "You are Andrea, a compassionate and professional loan recovery specialist at Tala.\n"
                 "Lead with empathy, understand the customer's situation, and help agree a realistic Promise to Pay.\n"
@@ -134,7 +127,7 @@ class RecoveriesAgent:
         return result.get("content", "")
 
     async def call_mcp_tool(self, tool_name: str, arguments: dict) -> dict:
-        """Call a tool via the MCP server with logging"""
+        """Call a tool via the MCP server"""
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -145,8 +138,7 @@ class RecoveriesAgent:
                 response.raise_for_status()
                 return response.json()
         except Exception as e:
-            error_msg = f"Error calling MCP tool {tool_name}: {e}"
-            print(error_msg)
+            print(f"Error calling MCP tool {tool_name}: {e}")
             return {"error": str(e)}
 
     def _call_mcp_tool_sync(self, tool_name: str, arguments: dict) -> dict:
@@ -161,240 +153,66 @@ class RecoveriesAgent:
                 response.raise_for_status()
                 return response.json()
         except Exception as e:
-            error_msg = f"Error calling MCP tool {tool_name}: {e}"
-            print(error_msg)
+            print(f"Error calling MCP tool {tool_name}: {e}")
             return {"error": str(e)}
 
     async def process_message(
         self,
         message: str,
         session_id: str,
-        history: List[Dict[str, str]],
-        parent_span = None  # NEW: Accept parent span for nesting
+        history: List[Dict[str, str]]
     ) -> Dict[str, Any]:
-        """Process a user message and return agent response with full e2e logging"""
+        """Process a user message and return agent response"""
 
-        # Start a span for this conversation turn
-        span = None
-        if self.logger:
-            span = self.logger.start_span(
-                name="conversation_turn",
-                span_attributes={
-                    "session_id": session_id,
-                    "turn_number": len(history) + 1,
-                    "message_length": len(message),
-                },
-                parent=parent_span,
-            )
-
-        try:
-            # Initialize session if needed
-            if session_id not in self.sessions:
-                customer_info = await self._get_customer_info_with_logging(session_id, span)
-                self.sessions[session_id] = {
-                    "customer_info": customer_info,
-                    "ptp_recorded": False
-                }
-
-            session = self.sessions[session_id]
-            customer_info = session["customer_info"]
-
-            # Build conversation history
-            messages: List[Any] = [SystemMessage(content=self.get_system_prompt())]
-            messages.append(SystemMessage(content=self._build_customer_context(customer_info)))
-
-            # Add conversation history
-            for msg in history:
-                if msg["role"] == "user":
-                    messages.append(HumanMessage(content=msg["content"]))
-                elif msg["role"] == "assistant":
-                    messages.append(AIMessage(content=msg["content"]))
-
-            # Add current message
-            messages.append(HumanMessage(content=message))
-
-            # Get response from LLM with logging
-            response_text = await self._invoke_model_with_logging(messages, session_id, message, span)
-
-            # Check for PTP commitment
-            if not session.get("ptp_recorded") and self._looks_like_commitment(message):
-                await self._try_record_ptp_with_logging(
-                    session_id=session_id,
-                    conversation=history + [{"role": "assistant", "content": response_text}],
-                    parent_span=span,
-                )
-
-            result = {
-                "content": response_text,
-                "metadata": {
-                    "session_id": session_id,
-                    "customer_id": customer_info["customer_id"],
-                    "turn_number": len(history) + 1,
-                    "ptp_recorded": session.get("ptp_recorded", False),
-                }
+        # Initialize session if needed
+        if session_id not in self.sessions:
+            self.sessions[session_id] = {
+                "customer_info": await self.get_customer_info(session_id),
+                "ptp_recorded": False
             }
 
-            # Log successful completion
-            if span:
-                span.log(
-                    input={"message": message, "history_length": len(history)},
-                    output={"response": response_text, "metadata": result["metadata"]},
-                    metadata={
-                        "customer_id": customer_info["customer_id"],
-                        "loan_id": customer_info["loan_id"],
-                        "days_overdue": customer_info["days_overdue"],
-                    }
-                )
-                span.end()
+        session = self.sessions[session_id]
 
-            return result
+        # Build conversation history
+        messages: List[Any] = [SystemMessage(content=self.get_system_prompt())]
 
-        except Exception as e:
-            # Log error to Braintrust
-            error_msg = str(e)
-            print(f"❌ Error in process_message: {error_msg}")
+        # Add customer context
+        customer_info = session["customer_info"]
+        messages.append(SystemMessage(content=self._build_customer_context(customer_info)))
 
-            if span:
-                span.log(
-                    input={"message": message, "history_length": len(history)},
-                    error=error_msg,
-                    metadata={"session_id": session_id}
-                )
-                span.end()
+        # Add conversation history
+        for msg in history:
+            if msg["role"] == "user":
+                messages.append(HumanMessage(content=msg["content"]))
+            elif msg["role"] == "assistant":
+                messages.append(AIMessage(content=msg["content"]))
 
-            raise
+        # Add current message
+        messages.append(HumanMessage(content=message))
 
-    async def _get_customer_info_with_logging(self, session_id: str, parent_span) -> dict:
-        """Get customer information with logging"""
-        span = None
-        if self.logger and parent_span:
-            span = self.logger.start_span(
-                name="get_customer_info",
-                parent=parent_span,
-                span_attributes={"session_id": session_id}
-            )
-
-        try:
-            if self.use_mcp:
-                # Get real customer data via MCP server
-                customer_data = await self.call_mcp_tool("get_customer_info", {"customer_id": "CUST001"})
-                loan_data = await self.call_mcp_tool("get_loan_details", {"loan_id": "LOAN12345"})
-
-                result = {
-                    "customer_id": customer_data.get("customer_id", "CUST001"),
-                    "name": customer_data.get("name", "Sarah Omondi"),
-                    "loan_id": loan_data.get("loan_id", "LOAN12345"),
-                    "original_amount": loan_data.get("original_amount", 500.00),
-                    "total_owed": loan_data.get("current_balance", 562.50),
-                    "days_overdue": loan_data.get("days_overdue", 45),
-                    "previous_loans": customer_data.get("previous_loans", 3),
-                    "payment_history": customer_data.get("payment_history", "2 on-time, 1 late")
-                }
-            else:
-                # Return mock data for demo
-                result = {
-                    "customer_id": "CUST001",
-                    "name": "Sarah Omondi",
-                    "loan_id": "LOAN12345",
-                    "original_amount": 500.00,
-                    "total_owed": 562.50,
-                    "days_overdue": 45,
-                    "previous_loans": 3,
-                    "payment_history": "2 on-time, 1 late"
-                }
-
-            if span:
-                span.log(
-                    input={"session_id": session_id},
-                    output=result,
-                    metadata={"source": "mcp" if self.use_mcp else "mock"}
-                )
-                span.end()
-
-            return result
-
-        except Exception as e:
-            if span:
-                span.log(error=str(e))
-                span.end()
-            raise
-
-    async def _invoke_model_with_logging(self, messages: List[BaseMessage], session_id: str, user_message: str, parent_span) -> str:
-        """Invoke model with comprehensive logging"""
-        span = None
-        if self.logger and parent_span:
-            span = self.logger.start_span(
-                name="llm_invoke",
-                parent=parent_span,
-                span_attributes={
-                    "session_id": session_id,
-                    "model": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
-                }
-            )
-
-        try:
+        # Get response from LLM with optional Braintrust logging
+        if self.logger:
+            with self.logger.start_span(name="llm_invoke", input={"message": message, "session_id": session_id}) as span:
+                response_text = self._invoke_model(messages)
+                span.log(output={"response": response_text})
+        else:
             response_text = self._invoke_model(messages)
 
-            if span:
-                span.log(
-                    input={"message": user_message, "message_count": len(messages)},
-                    output={"response": response_text, "response_length": len(response_text)},
-                    metadata={"session_id": session_id}
-                )
-                span.end()
-
-            return response_text
-
-        except Exception as e:
-            if span:
-                span.log(
-                    input={"message": user_message},
-                    error=str(e)
-                )
-                span.end()
-            raise
-
-    async def _try_record_ptp_with_logging(self, session_id: str, conversation: List[dict], parent_span) -> None:
-        """Attempt to extract and record PTP with logging"""
-        span = None
-        if self.logger and parent_span:
-            span = self.logger.start_span(
-                name="ptp_extraction",
-                parent=parent_span,
-                span_attributes={"session_id": session_id}
+        # Check if we need to call any tools (simplified - in production use LangChain tool calling)
+        # Attempt PTP extraction/recording when the customer likely commits
+        if not session.get("ptp_recorded") and self._looks_like_commitment(message):
+            await self.try_record_ptp(
+                session_id=session_id,
+                conversation=history + [{"role": "assistant", "content": response_text}],
             )
 
-        try:
-            await self.try_record_ptp(session_id, conversation)
-
-            session = self.sessions.get(session_id)
-            if span and session:
-                ptp_data = session.get("ptp")
-                span.log(
-                    input={"conversation_length": len(conversation)},
-                    output={
-                        "ptp_recorded": session.get("ptp_recorded", False),
-                        "ptp": ptp_data
-                    },
-                    metadata={"session_id": session_id}
-                )
-
-                # Add a score for successful PTP
-                if session.get("ptp_recorded") and ptp_data:
-                    span.log(
-                        scores={
-                            "ptp_success": 1.0,
-                            "ptp_amount": float(ptp_data.get("amount", 0))
-                        }
-                    )
-
-                span.end()
-
-        except Exception as e:
-            if span:
-                span.log(error=str(e))
-                span.end()
-            # Don't re-raise - PTP extraction failure shouldn't break conversation
+        return {
+            "content": response_text,
+            "metadata": {
+                "session_id": session_id,
+                "customer_id": customer_info["customer_id"]
+            }
+        }
 
     def _looks_like_commitment(self, user_text: str) -> bool:
         t = user_text.lower()
@@ -419,8 +237,34 @@ class RecoveriesAgent:
         return any(m in t for m in commitment_markers)
 
     async def get_customer_info(self, session_id: str) -> dict:
-        """Legacy method - use _get_customer_info_with_logging instead"""
-        return await self._get_customer_info_with_logging(session_id, None)
+        """Get customer information from MCP server or use mock data"""
+        if self.use_mcp:
+            # Get real customer data via MCP server
+            customer_data = await self.call_mcp_tool("get_customer_info", {"customer_id": "CUST001"})
+            loan_data = await self.call_mcp_tool("get_loan_details", {"loan_id": "LOAN12345"})
+
+            return {
+                "customer_id": customer_data.get("customer_id", "CUST001"),
+                "name": customer_data.get("name", "Sarah Omondi"),
+                "loan_id": loan_data.get("loan_id", "LOAN12345"),
+                "original_amount": loan_data.get("original_amount", 500.00),
+                "total_owed": loan_data.get("current_balance", 562.50),
+                "days_overdue": loan_data.get("days_overdue", 45),
+                "previous_loans": customer_data.get("previous_loans", 3),
+                "payment_history": customer_data.get("payment_history", "2 on-time, 1 late")
+            }
+        else:
+            # Return mock data for demo
+            return {
+                "customer_id": "CUST001",
+                "name": "Sarah Omondi",
+                "loan_id": "LOAN12345",
+                "original_amount": 500.00,
+                "total_owed": 562.50,
+                "days_overdue": 45,
+                "previous_loans": 3,
+                "payment_history": "2 on-time, 1 late"
+            }
 
     async def try_record_ptp(self, session_id: str, conversation: List[dict]) -> None:
         """Attempt to extract and record PTP from conversation"""
