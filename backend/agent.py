@@ -379,11 +379,13 @@ class RecoveriesAgent:
                     metadata={"session_id": session_id}
                 )
 
-                # Add a score for successful PTP
+                # Add scores and metadata for successful PTP
                 if session.get("ptp_recorded") and ptp_data:
                     span.log(
                         scores={
-                            "ptp_success": 1.0,
+                            "ptp_success": 1.0  # Binary: 1.0 = success, 0.0 = no PTP
+                        },
+                        metadata={
                             "ptp_amount": float(ptp_data.get("amount", 0))
                         }
                     )

@@ -123,10 +123,8 @@ async def chat(request: ChatRequest, req: Request):
                 },
                 metadata={
                     "elapsed_seconds": round(elapsed, 3),
+                    "response_time_seconds": round(elapsed, 3),
                     "trace_id": trace_id,
-                },
-                scores={
-                    "response_time_seconds": elapsed
                 }
             )
             top_span.end()
