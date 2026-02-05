@@ -94,12 +94,12 @@ async def chat(request: ChatRequest, req: Request):
             for msg in request.history
         ]
 
-        # Get response from agent (passing parent span for nested logging)
+        # Get response from agent (flat logging for now - no parent span)
         response = await agent.process_message(
             message=request.message,
             session_id=request.session_id,
             history=history,
-            parent_span=top_span
+            parent_span=None
         )
 
         result = ChatResponse(
