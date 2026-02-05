@@ -188,7 +188,6 @@ class RecoveriesAgent:
                     "turn_number": len(history) + 1,
                     "message_length": len(message),
                 },
-                parent=parent_span,
             )
 
         try:
@@ -274,7 +273,6 @@ class RecoveriesAgent:
         if self.logger and parent_span:
             span = self.logger.start_span(
                 name="get_customer_info",
-                parent=parent_span,
                 span_attributes={"session_id": session_id}
             )
 
@@ -329,7 +327,6 @@ class RecoveriesAgent:
         if self.logger and parent_span:
             span = self.logger.start_span(
                 name="llm_invoke",
-                parent=parent_span,
                 span_attributes={
                     "session_id": session_id,
                     "model": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
@@ -364,7 +361,6 @@ class RecoveriesAgent:
         if self.logger and parent_span:
             span = self.logger.start_span(
                 name="ptp_extraction",
-                parent=parent_span,
                 span_attributes={"session_id": session_id}
             )
 
