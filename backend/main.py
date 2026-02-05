@@ -22,19 +22,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize agent
-agent = RecoveriesAgent()
-
-# Initialize Braintrust logger for API-level tracing
+# Initialize Braintrust logger first (shared between API and agent)
 try:
     api_logger = braintrust.init_logger(
         project="recoveries-agent",
         api_key=os.getenv("BRAINTRUST_API_KEY"),
     )
-    print("✓ API-level Braintrust logger initialized")
+    print("✓ Braintrust logger initialized")
 except Exception as e:
-    print(f"⚠ API logger not configured: {e}")
+    print(f"⚠ Braintrust logger not configured: {e}")
     api_logger = None
+
+# Initialize agent with shared logger
+agent = RecoveriesAgent(logger=api_logger)
 
 
 class Message(BaseModel):

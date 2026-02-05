@@ -10,7 +10,7 @@ from braintrust_prompts import BraintrustPromptLoader, prompt_ref_from_env
 
 
 class RecoveriesAgent:
-    def __init__(self):
+    def __init__(self, logger=None):
         self.mcp_url = os.getenv("MCP_SERVER_URL", "http://localhost:3000")
         self.min_ptp_percent = float(os.getenv("MIN_PTP_PERCENT", "0.25"))
         self.max_ptp_days = int(os.getenv("MAX_PTP_DAYS", "90"))
@@ -18,16 +18,20 @@ class RecoveriesAgent:
             cache_ttl_seconds=int(os.getenv("PROMPT_CACHE_TTL_SECONDS", "60"))
         )
 
-        # Initialize Braintrust for logging and prompt management
-        try:
-            self.logger = braintrust.init_logger(
-                project="recoveries-agent",
-                api_key=os.getenv("BRAINTRUST_API_KEY"),
-            )
-            print("✓ Braintrust logger initialized")
-        except Exception as e:
-            print(f"⚠ Braintrust not configured, logging disabled: {e}")
-            self.logger = None
+        # Use provided logger or create a new one
+        if logger is not None:
+            self.logger = logger
+            print("✓ Using shared Braintrust logger")
+        else:
+            try:
+                self.logger = braintrust.init_logger(
+                    project="recoveries-agent",
+                    api_key=os.getenv("BRAINTRUST_API_KEY"),
+                )
+                print("✓ Braintrust logger initialized")
+            except Exception as e:
+                print(f"⚠ Braintrust not configured, logging disabled: {e}")
+                self.logger = None
 
         # Use MCP server for model access
         self.use_mcp = os.getenv("USE_MCP_SERVER", "false").lower() == "true"
