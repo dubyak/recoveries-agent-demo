@@ -108,23 +108,34 @@ async def chat(request: ChatRequest, req: Request):
             metadata=response.get("metadata", {})
         )
 
-        # Log successful completion
+        # Log successful completion with full conversation array
         if top_span:
             elapsed = time.time() - start_time
+
+            # Build full conversation array including current turn and response
+            messages_array = []
+            for msg in history:
+                messages_array.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
+            messages_array.append({"role": "user", "content": request.message})
+            messages_array.append({"role": "assistant", "content": response["content"]})
+
             top_span.log(
                 input={
-                    "message": request.message,
-                    "session_id": request.session_id,
-                    "history_length": len(history)
+                    "messages": messages_array[:-1],  # All messages up to current user message
                 },
                 output={
-                    "response": response["content"],
+                    "role": "assistant",
+                    "content": response["content"],
                     "metadata": response.get("metadata", {})
                 },
                 metadata={
                     "elapsed_seconds": round(elapsed, 3),
                     "response_time_seconds": round(elapsed, 3),
                     "trace_id": trace_id,
+                    "session_id": request.session_id,
                 }
             )
             top_span.end()
@@ -135,19 +146,28 @@ async def chat(request: ChatRequest, req: Request):
         error_msg = str(e)
         print(f"❌ Error processing chat: {error_msg}")
 
-        # Log error to Braintrust
+        # Log error to Braintrust with full conversation array
         if top_span:
             elapsed = time.time() - start_time
+
+            # Build message array for error logging
+            messages_array = []
+            for msg in request.history:
+                messages_array.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+            messages_array.append({"role": "user", "content": request.message})
+
             top_span.log(
                 input={
-                    "message": request.message,
-                    "session_id": request.session_id,
-                    "history_length": len(request.history)
+                    "messages": messages_array,
                 },
                 error=error_msg,
                 metadata={
                     "elapsed_seconds": round(elapsed, 3),
                     "trace_id": trace_id,
+                    "session_id": request.session_id,
                 }
             )
             top_span.end()

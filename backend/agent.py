@@ -237,15 +237,32 @@ class RecoveriesAgent:
                 }
             }
 
-            # Log successful completion
+            # Log successful completion with full conversation array for inline view
             if span:
+                # Build full message array for Braintrust inline conversation view
+                messages_array = []
+                for msg in history:
+                    messages_array.append({
+                        "role": msg["role"],
+                        "content": msg["content"]
+                    })
+                messages_array.append({"role": "user", "content": message})
+
                 span.log(
-                    input={"message": message, "history_length": len(history)},
-                    output={"response": response_text, "metadata": result["metadata"]},
+                    input={
+                        "messages": messages_array,
+                        "turn_number": len(history) + 1,
+                    },
+                    output={
+                        "role": "assistant",
+                        "content": response_text,
+                        "metadata": result["metadata"]
+                    },
                     metadata={
                         "customer_id": customer_info["customer_id"],
                         "loan_id": customer_info["loan_id"],
                         "days_overdue": customer_info["days_overdue"],
+                        "session_id": session_id,
                     }
                 )
                 span.end()
@@ -258,8 +275,20 @@ class RecoveriesAgent:
             print(f"❌ Error in process_message: {error_msg}")
 
             if span:
+                # Build message array even for errors
+                messages_array = []
+                for msg in history:
+                    messages_array.append({
+                        "role": msg["role"],
+                        "content": msg["content"]
+                    })
+                messages_array.append({"role": "user", "content": message})
+
                 span.log(
-                    input={"message": message, "history_length": len(history)},
+                    input={
+                        "messages": messages_array,
+                        "turn_number": len(history) + 1,
+                    },
                     error=error_msg,
                     metadata={"session_id": session_id}
                 )
