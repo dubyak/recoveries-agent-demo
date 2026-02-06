@@ -83,6 +83,8 @@ async def chat(request: ChatRequest, req: Request):
                 "session_id": request.session_id,
                 "api_endpoint": "/api/chat",
                 "user_agent": req.headers.get("user-agent", "unknown"),
+                "type": "api",  # Mark as API span
+                "model": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
             }
         )
         trace_id = top_span.id if hasattr(top_span, 'id') else None
@@ -123,6 +125,7 @@ async def chat(request: ChatRequest, req: Request):
             messages_array.append({"role": "assistant", "content": response["content"]})
 
             top_span.log(
+                model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
                 input={
                     "messages": messages_array[:-1],  # All messages up to current user message
                 },

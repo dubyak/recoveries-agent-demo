@@ -187,6 +187,7 @@ class RecoveriesAgent:
                     "session_id": session_id,
                     "turn_number": len(history) + 1,
                     "message_length": len(message),
+                    "type": "agent",  # Mark as agent span
                 },
             )
 
@@ -351,14 +352,17 @@ class RecoveriesAgent:
             raise
 
     async def _invoke_model_with_logging(self, messages: List[BaseMessage], session_id: str, user_message: str, parent_span) -> str:
-        """Invoke model with comprehensive logging"""
+        """Invoke model with comprehensive logging for Braintrust thread view"""
         span = None
+        model_name = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+
         if self.logger and parent_span:
             span = self.logger.start_span(
                 name="llm_invoke",
                 span_attributes={
                     "session_id": session_id,
-                    "model": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
+                    "model": model_name,
+                    "type": "llm",  # Mark as LLM span for Braintrust
                 }
             )
 
@@ -366,9 +370,20 @@ class RecoveriesAgent:
             response_text = self._invoke_model(messages)
 
             if span:
+                # Convert LangChain messages to Braintrust format for thread view
+                messages_array = []
+                for msg in messages:
+                    if isinstance(msg, HumanMessage):
+                        messages_array.append({"role": "user", "content": msg.content})
+                    elif isinstance(msg, AIMessage):
+                        messages_array.append({"role": "assistant", "content": msg.content})
+                    elif isinstance(msg, SystemMessage):
+                        messages_array.append({"role": "system", "content": msg.content})
+
                 span.log(
-                    input={"message": user_message, "message_count": len(messages)},
-                    output={"response": response_text, "response_length": len(response_text)},
+                    model=model_name,  # Include model in log for thread view
+                    input=messages_array,  # Full messages array for thread view
+                    output=response_text,  # Just the response text
                     metadata={"session_id": session_id}
                 )
                 span.end()
